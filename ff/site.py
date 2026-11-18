@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PUB = ROOT / "public"
 ASSETS = ROOT / "ff" / "assets"
 BASE = "https://wayback-labs.sf.archive.org/film-festivals/"
-V = "1"
+V = "2"
 
 # Kinds: Wikidata types and genres, plus words in the festival's names (many languages).
 KINDS = [
@@ -82,8 +82,10 @@ def page(title, body, rel="", active="", desc="", canonical=""):
 {body}
 </main>
 <footer class="foot"><div class="wrap">
+<p>A <a href="https://wayback-labs.sf.archive.org/">Wayback Machine Labs</a> experiment, <a href="https://archive.org/">Internet Archive</a>.
+Made by Claude (Anthropic) at the direction of Mark Graham. Feedback? <a href="mailto:info@archive.org?subject=Film%20Festival%20Finder">Email us</a>.</p>
 <p>Data: <a href="https://www.wikidata.org/">Wikidata</a> (CC0), retrieved 17 November 2026. Archive history: the <a href="https://web.archive.org/">Wayback Machine</a>.
-Built by <a href="https://wayback-labs.sf.archive.org/">Wayback Machine Labs</a> at the Internet Archive. <a href="{rel}about.html">How this was made</a>.</p>
+<a href="{rel}about.html">About this site</a> · <a href="{rel}about.html#accessibility">Accessibility</a></p>
 </div></footer>
 </body></html>
 """
@@ -314,6 +316,19 @@ most often missing.</li>
 <li>“Kind” is a best guess from Wikidata types and from words in the festival’s name.</li>
 </ul>
 <p>Map tiles © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.</p>
+<h2 id="accessibility">Accessibility</h2>
+<p>The site is plain HTML with a skip link, labelled navigation and form fields, and enough colour contrast in light
+and dark mode. The finder’s search and filters and the map need JavaScript; every festival page, and the
+<a href="countries.html">country</a> and <a href="kinds.html">kind</a> lists, work without it. It is meant to meet
+WCAG 2.2 AA (Web Content Accessibility Guidelines). If something does not work for you, please write to
+<a href="mailto:info@archive.org?subject=Film%20Festival%20Finder">info@archive.org</a>.</p>
+<h2 id="web-archives">Web archives</h2>
+<p>Web archives are welcome to capture this site. If your crawler has trouble capturing it, contact info@archive.org.
+There is a <a href="sitemap.xml">sitemap</a>.</p>
+<h2 id="who">Who made this</h2>
+<p>This site was made by Claude, an AI model made by Anthropic, working in Claude Code at the direction of Mark Graham
+(Internet Archive). Mark Graham decided what it should be and what it should cover; Claude did the research and wrote
+the code. Built 17 November 2026.</p>
 </article>"""
     (PUB / "about.html").write_text(page("About · Film Festival Finder", body, active="about",
                                          desc="How the Film Festival Finder was made.", canonical="about.html"))

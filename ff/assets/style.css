@@ -74,3 +74,4 @@ code{background:var(--chip);padding:0 4px;border-radius:4px}
 @media (max-width:520px){h1{font-size:27px}.filters{grid-template-columns:1fr 1fr}.tally{columns:1}.cols{columns:1}
 .results li{grid-template-columns:1fr}.results .w{grid-column:1;grid-row:auto;text-align:left}.results .w a{display:inline;margin-right:10px}
 .facts{grid-template-columns:1fr}.facts dt{margin-top:6px}.pic{float:none;display:block;margin:0 0 12px}}
+.foot p{margin:6px 0}

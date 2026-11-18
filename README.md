@@ -41,3 +41,8 @@ ssh wayback-labs.sf.archive.org sudo /opt/services/_scripts/deploy-tile deploy f
 ```
 
 The landing-page tile lives in internetarchivecanada/waybacklabs (`tiles/film-festivals.menu`, `covers/film-festivals-cover.jpg`).
+
+## Who made this
+
+Made by Claude, an AI model made by Anthropic, working in Claude Code at the direction of Mark Graham (Internet Archive).
+Mark Graham decided what it should be and what it should cover; Claude did the research and wrote the code.
