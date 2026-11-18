@@ -304,7 +304,7 @@ another festival are listed on that festival’s page.</li>
 <li><b>Map</b>: {mapped:,} festivals whose item or place has coordinates.</li>
 <li><b>Website</b> for {sum(1 for f in main_list if f["site"]):,}, from Wikidata’s “official website”.</li>
 <li><b>Wayback Machine history</b>: for each website, the years in which its homepage was captured, from the Wayback
-Machine’s capture index. Checked so far: {checked:,} sites; {archived:,} have captures, {never:,} have none yet.
+Machine’s capture index. Checked on 18 November 2026: {checked:,} sites; {archived:,} have captures, {never:,} have none.
 The check is still running and the site is rebuilt as it goes.</li>
 </ul>
 <h2>Limits</h2>
