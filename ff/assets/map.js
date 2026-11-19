@@ -9,7 +9,10 @@
     d.rows.forEach(function (r) {
       if (r[11] == null) return;
       var m = L.marker([r[11], r[12]], {title: r[1]});
-      m.bindPopup('<a href="f/' + r[0] + '.html"><b>' + esc(r[1]) + "</b></a><br>" + esc([r[4], r[3]].filter(Boolean).join(", ")) + (r[5] ? "<br>since " + r[5] : ""));
+      m.bindPopup(function () {
+        var img = r[14] ? '<a href="f/' + r[0] + '.html" class="pop-ph" tabindex="-1"><img src="thumbs/' + r[14] + '.webp" alt="" width="240" height="150" onerror="this.parentNode.remove()"></a>' : "";
+        return img + '<a href="f/' + r[0] + '.html"><b>' + esc(r[1]) + "</b></a><br>" + esc([r[4], r[3]].filter(Boolean).join(", ")) + (r[5] ? "<br>since " + r[5] : "");
+      }, {minWidth: 240});
       g.addLayer(m);
     });
     map.addLayer(g);

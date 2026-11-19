@@ -2,6 +2,7 @@
 
     python3 -m ff.site
 """
+import hashlib
 import html
 import json
 import re
@@ -14,7 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PUB = ROOT / "public"
 ASSETS = ROOT / "ff" / "assets"
 BASE = "https://wayback-labs.sf.archive.org/film-festivals/"
-V = "2"
+V = "3"
 
 # Kinds: Wikidata types and genres, plus words in the festival's names (many languages).
 KINDS = [
@@ -54,6 +55,21 @@ def kinds(f):
     return [k for k, rx, tw in KRX if rx.search(text) or any(w in tl for w in tw)]
 
 
+def th(f):
+    """Thumbnail name made by ff/shots.py on the studio: public/thumbs/<th>.webp, -l.webp and .json."""
+    return hashlib.sha1(f["site"].encode()).hexdigest()[:16] if f["site"] else ""
+
+
+def card(f, rel="../", label=""):
+    where = ", ".join(x for x in [f["place"], f["country"]] if x)
+    h = th(f)
+    img = (f'<img src="{rel}thumbs/{h}.webp" alt="" loading="lazy" width="480" height="300" '
+           f'onerror="this.remove()">' if h else "")
+    return (f'<li class="card"><a href="{rel}f/{f["id"]}.html">{f"<span class=lbl>{esc(label)}</span>" if label else ""}'
+            f'<span class="ph">{img}</span>'
+            f'<b>{esc(f["name"])}</b><span class="m">{esc(where)}{" · since " + str(f["founded"]) if f["founded"] else ""}</span></a></li>')
+
+
 def slug(s):
     return re.sub(r"[^a-z0-9]+", "-", (s or "").lower()).strip("-")
 
@@ -61,7 +77,7 @@ def slug(s):
 def page(title, body, rel="", active="", desc="", canonical=""):
     nav = "".join(
         f'<a href="{rel}{h}"{" aria-current=page" if a == active else ""}>{t}</a>'
-        for h, t, a in [("index.html", "Find", "find"), ("map.html", "Map", "map"),
+        for h, t, a in [("index.html", "Find", "find"), ("index.html?site=lost", "Lost sites", "lost"), ("map.html", "Map", "map"),
                         ("countries.html", "Countries", "countries"), ("kinds.html", "Kinds", "kinds"),
                         ("about.html", "About", "about")])
     return f"""<!doctype html>
@@ -146,7 +162,7 @@ def main():
                      f["founded"] or 0, f["ended"] or 0, [knames.index(k) for k in f["kinds"]],
                      f["host"] or "", f["sitelinks"], (ys[0] if ys else (0 if ys == [] else -1)),
                      f["coord"][0] if f["coord"] else None, f["coord"][1] if f["coord"] else None,
-                     1 if f["country_from"] == "web address" else 0])
+                     1 if f["country_from"] == "web address" else 0, th(f)])
     (PUB / "data.json").write_text(json.dumps({"kinds": knames, "rows": rows}, ensure_ascii=False,
                                               separators=(",", ":")))
 
@@ -155,6 +171,10 @@ def main():
     for f in main_list:
         if f["country"]:
             by_place[(f["country"], f["place"])].append(f)
+    by_country = defaultdict(list)
+    for f in sorted(main_list, key=lambda f: (-f["sitelinks"], f["name"].lower())):
+        by_country[f["country"] or ""].append(f)
+    pos = {f["id"]: (c, i) for c, fs in by_country.items() for i, f in enumerate(fs)}
     for f in fest.values():
         facts = []
         if f["country"]:
@@ -190,7 +210,8 @@ def main():
         ys = wb.get(f["id"])
         arch = ""
         if f["site"]:
-            arch = f'<section class="arch"><h2>In the Wayback Machine</h2><p>{wb_line(f, wb)}</p>{years_strip(ys, f["founded"])}</section>'
+            arch = (f'<section class="arch"><h2>In the Wayback Machine</h2><p>{wb_line(f, wb)}</p>'
+                    f'<p id="spn" hidden></p>{years_strip(ys, f["founded"])}</section>')
         eds = ""
         if f["edition_items"]:
             eds = "<section><h2>Editions on Wikidata</h2><ul>" + "".join(
@@ -199,19 +220,40 @@ def main():
         near = sorted(near, key=lambda g: -g["sitelinks"])[:12]
         nearby = ""
         if near:
-            nearby = f'<section><h2>Other festivals in {esc(f["place"])}</h2><ul class="cols">' + "".join(
-                f'<li><a href="{g["id"]}.html">{esc(g["name"])}</a></li>' for g in near) + "</ul></section>"
+            nearby = (f'<section><h2>Other festivals in {esc(f["place"])}</h2><ul class="cards">'
+                      + "".join(card(g) for g in near) + "</ul></section>")
+        pn = ""
+        if f["id"] in pos:
+            c, i = pos[f["id"]]
+            fs = by_country[c]
+            seen = {g["id"] for g in near} | {f["id"]}
+            more = [g for g in fs if g["id"] not in seen][:8] if c else []
+            prev_, next_ = (fs[i - 1] if i > 0 else None), (fs[i + 1] if i + 1 < len(fs) else None)
+            scope = f"in {esc(c)}" if c else "with no country"
+            if prev_ or next_:
+                pn = (f'<nav class="pn" aria-label="Previous and next festival {scope}"><ul class="cards two">'
+                      + (card(prev_, label=f"← Previous {scope}") if prev_ else "<li></li>")
+                      + (card(next_, label=f"Next {scope} →") if next_ else "<li></li>")
+                      + f'</ul><p class="note">Festival {i + 1:,} of {len(fs):,} {scope}, best known first.</p></nav>')
+            if more:
+                nearby += (f'<section><h2>Best-known festivals in {esc(c)}</h2><ul class="cards">' + "".join(card(g) for g in more)
+                           + f'</ul><p><a href="../index.html?country={urllib.parse.quote(c)}">All {len(fs):,} festivals in {esc(c)} →</a></p></section>')
         img = ""
         if f["image"] or f["logo"]:
             src = f["logo"] or f["image"]
             img = f'<img class="pic" src="{esc(src)}" alt="" loading="lazy">'
+        shot = ""
+        if f["site"]:
+            shot = (f'<figure class="shot" id="shot" data-h="{th(f)}" data-site="{esc(f["site"])}" data-name="{esc(f["name"])}" hidden>'
+                    f'<a class="frame"><img alt="" width="960" height="600"></a><figcaption></figcaption></figure>')
         alt = f'<p class="alt">Also: {esc(" · ".join(f["alt"]))}</p>' if f["alt"] else ""
         desc = f'<p class="lede">{esc(f["desc"][0].upper() + f["desc"][1:])}</p>' if f.get("desc") else ""
         body = f"""<p class="crumb"><a href="../index.html">All festivals</a>{f' › <a href="../index.html?country={urllib.parse.quote(f["country"])}">{esc(f["country"])}</a>' if f["country"] else ""}</p>
 <article class="fest">{img}<h1>{esc(f["name"])}</h1>{alt}{desc}
 <dl class="facts">{"".join(f"<dt>{k}</dt><dd>{v}</dd>" for k, v in facts)}</dl>
 <p class="links">{"".join(links)}</p></article>
-{arch}{eds}{nearby}"""
+{shot}{arch}{eds}{pn}{nearby}
+<script src="../fest.js?v={V}"></script>"""
         where = ", ".join(x for x in [f["place"], f["country"]] if x)
         (PUB / "f" / f"{f['id']}.html").write_text(page(
             f"{f['name']} · Film Festival Finder", body, rel="../",
@@ -237,11 +279,15 @@ its website and its history in the Wayback Machine.</p>
 <label><span>Kind</span><select id="kind"><option value="">Any kind</option>{kopts}</select></label>
 <label><span>Founded</span><select id="decade"><option value="">Any year</option>{decs}</select></label>
 <label><span>Archive</span><select id="arch"><option value="">Any</option><option value="yes">Archived</option><option value="no">Not yet archived</option></select></label>
+<label><span>Website today</span><select id="site"><option value="">Any</option><option value="pic">Has a picture</option><option value="live">Up and running</option><option value="lost">Gone or taken over</option><option value="gone">Gone or not loading</option><option value="taken">Parked or taken over</option></select></label>
 <label><span>Sort</span><select id="sort"><option value="known">Best known first</option><option value="name">Name A–Z</option><option value="new">Newest founded</option><option value="old">Oldest founded</option><option value="wb">Longest archived</option></select></label>
 </div></form>
 </section>
-<p class="count" id="count" aria-live="polite"></p>
-<ol class="results" id="results"></ol>
+<div class="bar"><p class="count" id="count" aria-live="polite"></p>
+<div class="views" role="group" aria-label="Show results as"><button type="button" id="v-grid" aria-pressed="true">Pictures</button><button type="button" id="v-list" aria-pressed="false">List</button></div></div>
+<p class="lostnote" id="lostnote" hidden>These festivals’ websites are gone, or their web addresses now belong to someone else.
+Where the Wayback Machine kept a copy, the picture shows how the site looked before.</p>
+<ol class="results grid" id="results"></ol>
 <p class="more"><button id="more" hidden>Show more</button></p>
 <noscript><p>The finder needs JavaScript. You can still browse by <a href="countries.html">country</a> or <a href="kinds.html">kind</a>.</p></noscript>
 <script src="app.js?v={V}"></script>"""
@@ -302,10 +348,27 @@ another festival are listed on that festival’s page.</li>
 ({by_from['place']:,}), or guessed from a country web address such as <code>.it</code> or <code>.ca</code>
 ({by_from['web address']:,}, marked as guessed). {unknown:,} have no country.</li>
 <li><b>Map</b>: {mapped:,} festivals whose item or place has coordinates.</li>
-<li><b>Website</b> for {sum(1 for f in main_list if f["site"]):,}, from Wikidata’s “official website”.</li>
+<li><b>Website</b> for {sum(1 for f in main_list if f["site"]):,}, from Wikidata’s “official website”. The others
+have no picture.</li>
 <li><b>Wayback Machine history</b>: for each website, the years in which its homepage was captured, from the Wayback
 Machine’s capture index. Checked on 18 November 2026: {checked:,} sites; {archived:,} have captures, {never:,} have none.
 The check is still running and the site is rebuilt as it goes.</li>
+</ul>
+<h2 id="pictures">Pictures of the homepages, and saving them</h2>
+<p>Starting on 19 November 2026 we are visiting every festival website once, in a web browser on a Wayback Machine Labs
+computer, to take a picture of its homepage, and asking the Wayback Machine’s
+<a href="https://web.archive.org/save">Save Page Now</a> to archive each homepage, with a screenshot, the same day.
+Pictures and links appear on the site as they are made; the first pass takes about a day.</p>
+<ul>
+<li>If a website is <b>up</b>, the picture is the homepage as it looked that day.</li>
+<li>If it is <b>gone</b> (its address no longer works, it shows an error, or it would not load), or its address now
+belongs to <b>someone else</b> (a parked or for-sale domain, a server’s default page, or an unrelated site such as an
+online casino), we show the most recent copy in the Wayback Machine that still looks like the festival’s own site,
+with its date. Those festivals are gathered under <a href="index.html?site=lost">Lost sites</a>.</li>
+<li>Pictures of unrelated sites that took over a festival’s address are never shown. The check for them is automatic and
+can miss; please tell us if you see one.</li>
+<li>Pictures show the top of the page, 1280 by 800 pixels; videos are not loaded, so some show a dark space where a video
+would play.</li>
 </ul>
 <h2>Limits</h2>
 <ul>
