@@ -30,6 +30,19 @@ python3 -m ff.site         # -> public/ (committed)
 python3 cover/make.py      # tile cover -> cover/film-festivals-cover.jpg
 ```
 
+## Homepage pictures and saving (studio daemons)
+
+Two launchd daemons on the studio, code in `~/film-festivals-work/ff/` (rsync `ff/spn.py ff/shots.py` there), Python
+`~/newweb/venv/bin/python` (has Playwright and Pillow), state in SQLite, logs in `~/film-festivals-work/logs/`.
+Both are resumable and restart after a reboot.
+
+- `com.wbmstudio.film-festivals-spn`: `ff/spn.py` sends every homepage to Save Page Now (capture_all, capture_screenshot),
+  `FF_SPN_INFLIGHT` at a time. `spn.py festivals.json spn.sqlite stats|retry`.
+- `com.wbmstudio.film-festivals-shots`: `ff/shots.py` photographs each homepage in system Chrome (sandboxed); if the
+  site is gone, parked, a placeholder or taken over (gambling, adult, scam), it uses the latest good Wayback capture.
+  Every 2 minutes it writes `public/thumbs/index.json` and `<hash>.json` per site (with the SPN capture), which the
+  finder, festival pages and map read in the browser. `public/thumbs/` is not in git; deploys leave it alone.
+
 ## Deploy
 
 The studio dir `/opt/services/film-festivals` is a checkout of this repo (remote `canada`); Caddy serves `public/`.
