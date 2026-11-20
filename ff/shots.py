@@ -205,7 +205,18 @@ def worker(c, lock, thumbs, stats):
                     pass
                 b, page = launch(p)
                 stats["relaunch"] = stats.get("relaunch", 0) + 1
-            row = shoot(page, url, thumbs)
+            # A crashed tab stays crashed while the browser stays connected: every later site on this worker
+            # then failed with "Page crashed" (1,758 sites on 2026-11-19). Relaunch the browser and try once more.
+            for attempt in (1, 2):
+                row = shoot(page, url, thumbs)
+                if not re.search(r"crashed|TargetClosed", row["note"] or ""):
+                    break
+                try:
+                    b.close()
+                except Exception:
+                    pass
+                b, page = launch(p)
+                stats["relaunch"] = stats.get("relaunch", 0) + 1
             with lock:
                 c.execute("UPDATE shot SET done=?, src=?, ts=?, live=?, status=?, final_url=?, title=?, note=?, thumb=? WHERE url=?",
                           (time.time(), row["src"], row["ts"], row["live"], row["status"], row["final_url"], row["title"],

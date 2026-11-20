@@ -14,6 +14,7 @@ captures in flight (FF_SPN_INFLIGHT) and backs off on limits.
 import configparser
 import json
 import os
+import re
 import sqlite3
 import sys
 import time
@@ -111,8 +112,9 @@ def run(c):
                               (r["job_id"], time.time(), url))
                 else:
                     msg = (r.get("message") or json.dumps(r))[:300]
+                    # account limits only: a bare "limit" also matches site names (www.nolimitsfilmfestival.com)
                     if r.get("status_ext") in ("error:user-session-limit", "error:too-many-daily-captures") \
-                            or "limit" in msg.lower():
+                            or re.search(r"session limit|daily (capture )?limit|too many (daily )?captures|concurrent", msg, re.I):
                         log("limit:", msg); backoff = time.time() + 300; break
                     st = "recent" if ("already" in msg or r.get("timestamp")) else "refused"
                     c.execute("UPDATE job SET status=?, message=?, timestamp=?, finished=? WHERE url=?",
